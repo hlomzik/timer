@@ -25,11 +25,32 @@ window.Timer = function() {
 		start: function() {
 			this.checkpoint = getCurrentTime();
 			this.started = true;
+
+			var old_id, uid, item, wrapper, time;
+			for (old_id in this.timeouts) {
+				if (!this.timeouts.hasOwnProperty(old_id)) continue;
+				item = this.timeouts[old_id];
+				this.clearTimeout(old_id);
+				wrapper = item[0];
+				time = item[1];
+				
+				uid = setTimeout(wrapper, time);
+				wrapper.uid(uid);
+				this.timeouts[uid] = [ wrapper, time, this.getElapsedTime() ];
+			}
 		},
 		stop: function() {
 			this.elapsed += this.getSessionTime();
 			this.checkpoint = 0;
 			this.started = false;
+			
+			var uid, item, time = this.getElapsedTime();
+			for (uid in this.timeouts) {
+				if (!this.timeouts.hasOwnProperty(uid)) continue;
+				item = this.timeouts[uid];
+				this.clearTimeout(uid);
+				this.timeouts[uid] = [ item[0], item[1] - (time - item[2]), 0 ];
+			}
 		},
 		getSessionTime: function() {
 			if (this.started) {
