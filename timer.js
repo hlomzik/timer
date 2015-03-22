@@ -41,14 +41,23 @@ window.Timer = function() {
 		getElapsedTime: function() {
 			return this.elapsed + this.getSessionTime();
 		},
-		setTimeout: function(f, time) {
+		createWrapper: function(f, time) {
 			var uid = 0;
-			// @todo shim for Function.bind()
-			var wrapper = (function() {
-				setTimeout(f, 0);
-				this.clearTimeout(uid);
-			}).bind(this);
-			uid = setTimeout(wrapper, time);
+			var timer = this;
+			var wrapper = function() {
+				setTimeout(f, 0); // asynchronous call
+				timer.clearTimeout(uid);
+			};
+			wrapper.uid = function(id) {
+				uid = id;
+				return wrapper;
+			};
+			return wrapper;
+		},
+		setTimeout: function(f, time) {
+			var wrapper = this.createWrapper(f, time);
+			var uid = setTimeout(wrapper, time);
+			wrapper.uid(uid);
 			this.timeouts[uid] = [ wrapper, time, this.getElapsedTime() ];
 			return uid;
 		},
