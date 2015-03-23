@@ -17,6 +17,7 @@ window.Timer = function() {
 		this.checkpoint = 0;
 		this.started = false;
 		
+		this.counter = 0;
 		this.timeouts = [];
 		this.intervals = [];
 	};
@@ -25,13 +26,10 @@ window.Timer = function() {
 		start: function() {
 			this.checkpoint = getCurrentTime();
 			this.started = true;
-
-			var old_id, item;
-			for (old_id in this.timeouts) {
-				if (!this.timeouts.hasOwnProperty(old_id)) continue;
-				item = this.timeouts[old_id];
-				this.clearTimeout(old_id);
-				item[0].start(item[1]);
+			
+			for (var uid in this.timeouts) {
+				if (!this.timeouts.hasOwnProperty(uid)) continue;
+				this.timeouts[uid].start();
 			}
 		},
 		stop: function() {
@@ -39,11 +37,9 @@ window.Timer = function() {
 			this.checkpoint = 0;
 			this.started = false;
 			
-			var uid, item;
-			for (uid in this.timeouts) {
+			for (var uid in this.timeouts) {
 				if (!this.timeouts.hasOwnProperty(uid)) continue;
-				item = this.timeouts[uid];
-				item[0].stop();
+				this.timeouts[uid].stop();
 			}
 		},
 		getSessionTime: function() {
@@ -56,39 +52,38 @@ window.Timer = function() {
 		getElapsedTime: function() {
 			return this.elapsed + this.getSessionTime();
 		},
-		createWrapper: function(f) {
-			var uid = 0;
+		createWrapper: function(f, time) {
+			var uid = this.counter++;
 			var timer = this;
 			var wrapper = function() {
 				setTimeout(f, 0); // asynchronous call
 				timer.clearTimeout(uid);
 			};
-			wrapper.start = function(time) {
-				uid = setTimeout(wrapper, time);
-				timer.timeouts[uid] = [ wrapper, time, timer.getElapsedTime() ];
-				return uid;
+			wrapper.sid = 0; // system setTimeout() id
+			wrapper.uid = uid;
+			wrapper.time = time;
+			wrapper.start = function() {
+				wrapper.sid = setTimeout(wrapper, wrapper.time);
+				wrapper.started = timer.getElapsedTime();
+				return wrapper.sid;
 			};
 			wrapper.stop = function() {
-				var item = timer.timeouts[uid];
-				var time = timer.getElapsedTime();
-				clearTimeout(uid);
-				timer.timeouts[uid] = [ wrapper, item[1] - (time - item[2]), 0 ];
-				return uid;
+				clearTimeout(wrapper.sid);
+				wrapper.time -= timer.getElapsedTime() - wrapper.started;
+				wrapper.started = 0;
+				wrapper.sid = 0;
 			};
-			wrapper.uid = function(id) {
-				uid = id;
-				return wrapper;
-			};
+			timer.timeouts[uid] = wrapper;
 			return wrapper;
 		},
 		setTimeout: function(f, time) {
-			var wrapper = this.createWrapper(f);
-			var uid = wrapper.start(time);
-			return uid;
+			var wrapper = this.createWrapper(f, time);
+			wrapper.start();
+			return wrapper.uid;
 		},
 		clearTimeout: function(uid) {
+			this.timeouts[uid].stop();
 			delete this.timeouts[uid];
-			clearTimeout(uid);
 		},
 		setInterval: function() {
 			// @todo implement
