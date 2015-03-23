@@ -85,11 +85,21 @@ window.Timer = function() {
 			this.timeouts[uid].stop();
 			delete this.timeouts[uid];
 		},
-		setInterval: function() {
-			// @todo implement
+		setInterval: function(f, time) {
+			var timer = this;
+			var wrapper = function() {
+				setTimeout(f, 0); // asynchronous call
+				wrapper.sid = timer.setTimeout(wrapper, time);
+			};
+			wrapper.uid = this.intervals.length;
+			wrapper.sid = timer.setTimeout(wrapper, time);
+			this.intervals[wrapper.uid] = wrapper;
+			return wrapper.uid;
 		},
 		clearInterval: function(uid) {
-			// @todo implement
+			var wrapper = this.intervals[uid];
+			this.clearTimeout(wrapper.sid);
+			delete this.intervals[uid];
 		}
 	};
 	
