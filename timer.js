@@ -26,17 +26,12 @@ window.Timer = function() {
 			this.checkpoint = getCurrentTime();
 			this.started = true;
 
-			var old_id, uid, item, wrapper, time;
+			var old_id, item;
 			for (old_id in this.timeouts) {
 				if (!this.timeouts.hasOwnProperty(old_id)) continue;
 				item = this.timeouts[old_id];
 				this.clearTimeout(old_id);
-				wrapper = item[0];
-				time = item[1];
-				
-				uid = setTimeout(wrapper, time);
-				wrapper.uid(uid);
-				this.timeouts[uid] = [ wrapper, time, this.getElapsedTime() ];
+				item[0].start(item[1]);
 			}
 		},
 		stop: function() {
@@ -44,12 +39,11 @@ window.Timer = function() {
 			this.checkpoint = 0;
 			this.started = false;
 			
-			var uid, item, time = this.getElapsedTime();
+			var uid, item;
 			for (uid in this.timeouts) {
 				if (!this.timeouts.hasOwnProperty(uid)) continue;
 				item = this.timeouts[uid];
-				this.clearTimeout(uid);
-				this.timeouts[uid] = [ item[0], item[1] - (time - item[2]), 0 ];
+				item[0].stop();
 			}
 		},
 		getSessionTime: function() {
@@ -62,12 +56,24 @@ window.Timer = function() {
 		getElapsedTime: function() {
 			return this.elapsed + this.getSessionTime();
 		},
-		createWrapper: function(f, time) {
+		createWrapper: function(f) {
 			var uid = 0;
 			var timer = this;
 			var wrapper = function() {
 				setTimeout(f, 0); // asynchronous call
 				timer.clearTimeout(uid);
+			};
+			wrapper.start = function(time) {
+				uid = setTimeout(wrapper, time);
+				timer.timeouts[uid] = [ wrapper, time, timer.getElapsedTime() ];
+				return uid;
+			};
+			wrapper.stop = function() {
+				var item = timer.timeouts[uid];
+				var time = timer.getElapsedTime();
+				clearTimeout(uid);
+				timer.timeouts[uid] = [ wrapper, item[1] - (time - item[2]), 0 ];
+				return uid;
 			};
 			wrapper.uid = function(id) {
 				uid = id;
@@ -76,10 +82,8 @@ window.Timer = function() {
 			return wrapper;
 		},
 		setTimeout: function(f, time) {
-			var wrapper = this.createWrapper(f, time);
-			var uid = setTimeout(wrapper, time);
-			wrapper.uid(uid);
-			this.timeouts[uid] = [ wrapper, time, this.getElapsedTime() ];
+			var wrapper = this.createWrapper(f);
+			var uid = wrapper.start(time);
 			return uid;
 		},
 		clearTimeout: function(uid) {
