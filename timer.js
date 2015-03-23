@@ -78,7 +78,7 @@ window.Timer = function() {
 		},
 		setTimeout: function(f, time) {
 			var wrapper = this.createWrapper(f, time);
-			wrapper.start();
+			this.started && wrapper.start();
 			return wrapper.uid;
 		},
 		clearTimeout: function(uid) {
